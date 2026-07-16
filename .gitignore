@@ -127,5 +127,6 @@ data/meal_images/
 
 # Log files
 *.log
+logs/
 
 .ruff_cache/
