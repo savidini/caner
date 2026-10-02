@@ -8,16 +8,16 @@ test.beforeEach(async ({ page }) => {
 
 test.afterEach(async ({ page }, testInfo) => {
   const name = testInfo.title.split(':')[0];
-  if (!['desktop', 'mobile', 'narrow', 'tablet', 'dark'].includes(name)) return;
+  if (!['desktop', 'mobile', 'narrow', 'tablet', 'dark', 'expert-desktop', 'expert-mobile'].includes(name)) return;
   const screenshot = await page.screenshot({ path: testInfo.outputPath(`${name}.jpg`), type: 'jpeg', quality: 70 });
   // Optional transport for reviewers whose environment cannot download ZIP artifacts.
-  if (process.env.PRINT_REVIEW_IMAGES === 'true' && testInfo.project.name === 'chromium' && ['desktop', 'mobile', 'dark'].includes(name)) {
+  if (process.env.PRINT_REVIEW_IMAGES === 'true' && testInfo.project.name === 'chromium' && ['desktop', 'mobile', 'dark', 'expert-desktop', 'expert-mobile'].includes(name)) {
     console.log(`CANER_REVIEW_IMAGE ${name} ${screenshot.toString('base64')}`);
   }
 });
 
-async function openMenu(page) {
-  await page.goto('/?lang=en');
+async function openMenu(page, language = 'en', expert = false) {
+  await page.goto(`/?lang=${language}${expert ? '&expert=true' : ''}`);
   await expect(page.getByRole('heading', { name: 'Mensa Garbsen', exact: true })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 }
@@ -29,7 +29,11 @@ async function checkAccessibility(page, testInfo) {
   expect(violations.map(issue => ({ id: issue.id, targets: issue.nodes.slice(0, 3).map(node => node.target) }))).toEqual([]);
 }
 
-for (const [name, width, theme] of [['desktop', 1440, 'light'], ['mobile', 390, 'light'], ['narrow', 320, 'light'], ['tablet', 820, 'light'], ['dark', 390, 'dark']]) {
+for (const [name, width, theme, language = 'en', expert = false] of [
+  ['desktop', 1440, 'light'], ['mobile', 390, 'light'], ['narrow', 320, 'light'],
+  ['tablet', 820, 'light'], ['dark', 390, 'dark'],
+  ['expert-desktop', 1440, 'dark', 'de', true], ['expert-mobile', 320, 'light', 'de', true],
+]) {
   test(`${name}: layout, accessibility and startup request budget`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ colorScheme: theme });
@@ -45,8 +49,8 @@ for (const [name, width, theme] of [['desktop', 1440, 'light'], ['mobile', 390, 
         })).observe({ type: 'layout-shift', buffered: true });
       }
     });
-    await openMenu(page);
-    await expect(page.getByRole('combobox', { name: 'Select date' })).toHaveCount(1);
+    await openMenu(page, language, expert);
+    await expect(page.getByRole('combobox', { name: language === 'de' ? 'Datum auswählen' : 'Select date' })).toHaveCount(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(requests.filter(path => /^\/api\/(votes|comments)\//.test(path))).toHaveLength(0);
     expect(requests.filter(path => path === '/api/meal_image').length).toBeLessThan(12);
@@ -131,6 +135,10 @@ test('comments show retry, preserve drafts and restore focus', async ({ page }, 
   await expect(dialog.locator('.comment-text').first()).toHaveText(draft);
   await expect(dialog.locator('.comment-text img')).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Comment', exact: true })).toBeFocused();
+  if (process.env.PRINT_REVIEW_IMAGES === 'true' && testInfo.project.name === 'chromium') {
+    const screenshot = await page.screenshot({ type: 'jpeg', quality: 70 });
+    console.log(`CANER_REVIEW_IMAGE comments ${screenshot.toString('base64')}`);
+  }
   await checkAccessibility(page, testInfo);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
