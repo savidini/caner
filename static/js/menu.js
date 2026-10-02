@@ -237,7 +237,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const mensaSelectForArrows = document.getElementById('mensa');
   const datePickerInputForArrows = document.getElementById('date');
-  const allAvailableDatesForArrows = availableMenuDates;
+
+  function adjacentMenuDate(direction) {
+    const selected = datePickerInputForArrows.value.split('.').reverse().join('');
+    const dates = direction < 0 ? [...availableMenuDates].reverse() : availableMenuDates;
+    return dates.find(value => {
+      const comparable = value.split('.').reverse().join('');
+      return direction < 0 ? comparable < selected : comparable > selected;
+    });
+  }
 
   document.querySelectorAll('.date-nav-arrow').forEach(button => {
     button.addEventListener('click', function(event) {
@@ -252,9 +260,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const direction = this.dataset.direction === 'prev' ? -1 : 1;
       const currentSelectedMensa = mensaSelectForArrows.value;
       const currentSelectedDate = datePickerInputForArrows.value;
-      const currentIndex = allAvailableDatesForArrows.indexOf(currentSelectedDate);
-      const newIndex = currentIndex + direction;
-      const newDate = allAvailableDatesForArrows[newIndex];
+      const newDate = adjacentMenuDate(direction);
       if (newDate && newDate !== currentSelectedDate) {
         const params = new URLSearchParams(window.location.search);
         params.set('date', newDate);
@@ -267,9 +273,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function updateMensaTitleArrowStates() {
     if (!datePickerInputForArrows) return;
-    const currentIndex = allAvailableDatesForArrows.indexOf(datePickerInputForArrows.value);
-    const onFirst = currentIndex <= 0;
-    const onLast = currentIndex === -1 || currentIndex >= allAvailableDatesForArrows.length - 1;
+    const onFirst = !adjacentMenuDate(-1);
+    const onLast = !adjacentMenuDate(1);
 
     document.querySelectorAll('.date-nav-arrow[data-direction="prev"]').forEach(btn => {
       btn.disabled = onFirst;

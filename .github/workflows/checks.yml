@@ -13,16 +13,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build application image
+        id: app-build
         run: docker build -t caner-checks .
       - name: Python lint
         run: docker run --rm caner-checks uvx ruff check .
       - name: Template lint
+        if: ${{ !cancelled() && steps.app-build.outcome == 'success' }}
         run: docker run --rm caner-checks uvx djlint templates --profile=jinja --ignore=H021,H006,H030,H031
       - name: Python tests
+        if: ${{ !cancelled() && steps.app-build.outcome == 'success' }}
         run: docker run --rm caner-checks uv run --with pytest python -m pytest -q
       - name: Build browser checks
+        if: ${{ !cancelled() && steps.app-build.outcome == 'success' }}
+        id: browser-build
         run: docker build -f tests/browser/Dockerfile -t caner-browser .
       - name: Start isolated preview with PostgreSQL
+        if: ${{ !cancelled() && steps.browser-build.outcome == 'success' }}
+        id: preview
         run: |
           docker network create caner-checks
           docker run -d --name caner-test-db --network caner-checks -e POSTGRES_PASSWORD=test-only -e POSTGRES_DB=caner postgres:16-alpine
@@ -37,6 +44,7 @@ jobs:
           done
           docker exec caner-preview curl -fsS http://localhost:30823/health
       - name: Browser, accessibility and loading checks
+        if: ${{ !cancelled() && steps.preview.outcome == 'success' }}
         run: docker run --name caner-browser --network caner-checks caner-browser
       - name: Collect review artifacts
         if: always()

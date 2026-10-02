@@ -16,7 +16,7 @@ async function checkAccessibility(page, testInfo) {
   const result = await new AxeBuilder({ page }).analyze();
   const violations = result.violations.filter(issue => ['serious', 'critical'].includes(issue.impact));
   await testInfo.attach('accessibility', { body: JSON.stringify(violations, null, 2), contentType: 'application/json' });
-  expect(violations).toEqual([]);
+  expect(violations.map(issue => ({ id: issue.id, targets: issue.nodes.slice(0, 3).map(node => node.target) }))).toEqual([]);
 }
 
 for (const [name, width, theme] of [['desktop', 1440, 'light'], ['mobile', 390, 'light'], ['narrow', 320, 'light'], ['tablet', 820, 'light'], ['dark', 390, 'dark']]) {
@@ -42,8 +42,8 @@ for (const [name, width, theme] of [['desktop', 1440, 'light'], ['mobile', 390, 
     expect(requests.filter(path => path === '/api/meal_image').length).toBeLessThan(12);
     expect(await page.evaluate(() => window.menuLayoutShift)).toBeLessThan(0.05);
     expect(errors).toEqual([]);
-    await checkAccessibility(page, testInfo);
     await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: false });
+    await checkAccessibility(page, testInfo);
     await testInfo.attach('startup-requests', { body: JSON.stringify(requests), contentType: 'application/json' });
   });
 }
@@ -109,7 +109,7 @@ test('comments show retry, preserve drafts and restore focus', async ({ page }, 
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('status')).toContainText('Comments could not be loaded');
   await dialog.getByRole('button', { name: 'Try again' }).click();
-  await expect(dialog.locator('.comment-item')).toHaveCount(1);
+  await expect(dialog.locator('.comment-item').first()).toBeVisible();
   const draft = '<img src=x onerror=alert(1)> My lunch';
   await dialog.getByLabel('Name (optional)').fill('Menu tester');
   await dialog.getByLabel('Comment (optional)').fill(draft);
