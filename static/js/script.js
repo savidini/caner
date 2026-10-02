@@ -665,6 +665,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 .finally(() => {
                     if (submitBtn) {
                         submitBtn.disabled = false;
+                        if (generation === commentGeneration && document.activeElement === document.body) {
+                            submitBtn.focus();
+                        }
                     }
                 });
             });

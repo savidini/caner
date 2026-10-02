@@ -212,7 +212,10 @@ document.addEventListener('DOMContentLoaded', function () {
         setRecommendationResult(`<p class="text-danger mb-0">${escapeHtml(errorTemplate.replace('{error}', error.message))}</p>`, true);
       })
       .finally(() => {
-        if (recommendationRequest === controller) requestRecommendationButton.disabled = false;
+        if (recommendationRequest === controller) {
+          requestRecommendationButton.disabled = false;
+          if (document.activeElement === document.body) requestRecommendationButton.focus();
+        }
       });
     });
   }

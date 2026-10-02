@@ -58,6 +58,7 @@ def load_preview():
     module.available_dates = dates
     module.available_mensen = list(module.mensa_data)
     module.translate_comment_text = lambda text, lang: {lang: text, "translation_failed": False}
+    module.find_or_cache_meal_image = lambda *args, **kwargs: None
     return module, raw_meals
 
 

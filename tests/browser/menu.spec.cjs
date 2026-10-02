@@ -130,6 +130,7 @@ test('comments show retry, preserve drafts and restore focus', async ({ page }, 
   await dialog.getByRole('button', { name: 'Comment', exact: true }).click();
   await expect(dialog.locator('.comment-text').first()).toHaveText(draft);
   await expect(dialog.locator('.comment-text img')).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Comment', exact: true })).toBeFocused();
   await checkAccessibility(page, testInfo);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
@@ -191,4 +192,56 @@ test('keyboard nutrition popover and safe recommendation errors', async ({ page 
   await page.getByRole('button', { name: 'Get recommendation' }).click();
   await expect(page.locator('.recommendation-result')).toContainText('<img src=x onerror=alert(1)>');
   await expect(page.locator('.recommendation-result img')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden();
+});
+
+test('late comments cannot replace a newly opened meal', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openMenu(page);
+  const triggers = page.locator('.mobile-meal-card').getByRole('button', { name: 'Show comments' });
+  let release;
+  let started;
+  const requestStarted = new Promise(resolve => { started = resolve; });
+  const delay = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/comments/1?**', async route => {
+    started();
+    await delay;
+    await route.fulfill({ json: { comments: [{ rating: 'good', text: 'Stale response', has_text: true }], count: 1 } }).catch(() => {});
+  });
+  await triggers.nth(0).click();
+  await requestStarted;
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await triggers.nth(1).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading')).toContainText('Pasta');
+  await expect(dialog.locator('.comment-item').first()).toBeVisible();
+  release();
+  await expect(dialog).not.toContainText('Stale response');
+});
+
+test('closing a recommendation cancels it and preserves the next dialog', async ({ page }) => {
+  await openMenu(page);
+  let release;
+  let started;
+  const requestStarted = new Promise(resolve => { started = resolve; });
+  const delay = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/get_recommendation', async route => {
+    started();
+    await delay;
+    await route.fulfill({ json: { recommendation: 'Stale recommendation' } }).catch(() => {});
+  });
+  const trigger = page.getByRole('button', { name: 'Request recommendation for Mensa Garbsen' });
+  await trigger.click();
+  await page.getByRole('button', { name: 'Get recommendation' }).click();
+  await requestStarted;
+  // Close via its control while the submit button is pending.
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await trigger.click();
+  release();
+  await expect(page.locator('.recommendation-result')).toContainText('Choose a person');
+  await expect(page.locator('.recommendation-result')).not.toContainText('Stale recommendation');
+  await expect(page.getByRole('button', { name: 'Get recommendation' })).toBeEnabled();
 });
