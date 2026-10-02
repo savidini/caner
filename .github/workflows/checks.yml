@@ -1,0 +1,51 @@
+name: UI and performance checks
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build application image
+        run: docker build -t caner-checks .
+      - name: Python lint
+        run: docker run --rm caner-checks uvx ruff check .
+      - name: Template lint
+        run: docker run --rm caner-checks uvx djlint templates --profile=jinja --ignore=H021,H006,H030,H031
+      - name: Python tests
+        run: docker run --rm caner-checks uv run --with pytest python -m pytest -q
+      - name: Build browser checks
+        run: docker build -f tests/browser/Dockerfile -t caner-browser .
+      - name: Start isolated preview with PostgreSQL
+        run: |
+          docker network create caner-checks
+          docker run -d --name caner-test-db --network caner-checks -e POSTGRES_PASSWORD=test-only -e POSTGRES_DB=caner postgres:16-alpine
+          for attempt in {1..30}; do
+            docker exec caner-test-db pg_isready -U postgres && break
+            sleep 1
+          done
+          docker run -d --name caner-preview --network caner-checks -e DATABASE_URL=postgresql://postgres:test-only@caner-test-db:5432/caner caner-checks python -m tests.preview
+          for attempt in {1..30}; do
+            docker exec caner-preview curl -fsS http://localhost:30823/health && break
+            sleep 1
+          done
+          docker exec caner-preview curl -fsS http://localhost:30823/health
+      - name: Browser, accessibility and loading checks
+        run: docker run --name caner-browser --network caner-checks caner-browser
+      - name: Collect review artifacts
+        if: always()
+        run: |
+          mkdir -p artifacts
+          docker cp caner-browser:/checks/test-results artifacts/browser || true
+          docker logs caner-preview > artifacts/preview.log 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-review
+          path: artifacts

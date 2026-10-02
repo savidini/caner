@@ -63,6 +63,7 @@ from meal_image_cache import (
 )
 from meal_image_lookup_cache import find_or_cache_meal_image
 from meal_translation import has_configured_translation_api_key
+from meal_social import add_social_counts
 from mps_scoring import (
     MPSAuthenticationError,
     calculate_mps_for_meal,
@@ -605,32 +606,14 @@ def start_translation_fetch_after_startup():
 # --- END: Data Refresh Functions ---
 
 
-def prepare_meal_for_display(meal_data, language):
+def prepare_meal_for_display(meal_data, language, db_meal=None):
     meal = dict(meal_data)
-    try:
-        db_meal = Meal.query.filter_by(description=meal["description"]).first()
-        if db_meal:
-            meal["id"] = db_meal.id
-            meal["mps_score"] = db_meal.mps_score
-            meal["description_en"] = db_meal.description_en
-            meal["display_description"] = get_meal_display_name(db_meal, language)
-            logger.debug(
-                "Found DB meal %s for display: %s",
-                db_meal.id,
-                meal["description"][:50],
-            )
-        else:
-            meal["id"] = 0
-            meal["mps_score"] = None
-            meal["description_en"] = None
-            meal["display_description"] = meal["description"]
-            logger.warning("Meal not found in database: %s", meal["description"][:50])
-    except Exception as e:
-        logger.error("Error looking up meal in database: %s", e)
-        meal["id"] = 0
-        meal["mps_score"] = None
-        meal["description_en"] = None
-        meal["display_description"] = meal.get("description", "")
+    meal["id"] = db_meal.id if db_meal else 0
+    meal["mps_score"] = db_meal.mps_score if db_meal else None
+    meal["description_en"] = db_meal.description_en if db_meal else None
+    meal["display_description"] = (
+        get_meal_display_name(db_meal, language) if db_meal else meal["description"]
+    )
 
     meal["price_student"] = get_effective_student_price(
         meal["price_student"], meal.get("marking", "")
@@ -639,7 +622,21 @@ def prepare_meal_for_display(meal_data, language):
 
 
 def sort_meals_for_display(raw_meals, language):
-    meals = [prepare_meal_for_display(meal, language) for meal in raw_meals]
+    descriptions = {meal["description"] for meal in raw_meals}
+    db_meals = {}
+    if descriptions:
+        try:
+            db_meals = {
+                meal.description: meal
+                for meal in Meal.query.filter(Meal.description.in_(descriptions)).all()
+            }
+        except Exception:
+            db.session.rollback()
+            logger.exception("Error looking up menu meals")
+    meals = [
+        prepare_meal_for_display(meal, language, db_meals.get(meal["description"]))
+        for meal in raw_meals
+    ]
     return sorted(
         meals,
         key=lambda meal: calculate_caner(
@@ -837,6 +834,9 @@ def index():
                     mensa_data[mensa][selected_date], language
                 )
 
+    displayed_meals = [meal for meals in filtered_data.values() for meal in meals]
+    add_social_counts(displayed_meals, request.cookies.get("client_id"))
+
     # Get the current page view count to display in the template
     current_page_views = 0
     try:
@@ -903,6 +903,8 @@ def index():
             )
         )
         set_language_cookie(response, language)
+        if not request.cookies.get("client_id"):
+            set_client_id_cookie(response, get_client_id())
         return response
     except RecursionError as e:
         logger.error(f"RecursionError in index route: {e}")
