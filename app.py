@@ -1404,8 +1404,8 @@ def generate_caner_symbols(caner_score):
     # Add full icons
     for _ in range(full_icons):
         icons_html_parts.append(
-            '<img src="/static/img/caner.png" class="caner-icon light-caner">'
-            '<img src="/static/img/darkcaner.png" class="caner-icon dark-caner">'
+            '<img alt="" aria-hidden="true" src="/static/img/caner.png" class="caner-icon light-caner">'
+            '<img alt="" aria-hidden="true" src="/static/img/darkcaner.png" class="caner-icon dark-caner">'
         )
 
     # Add partial icon if needed
@@ -1416,8 +1416,8 @@ def generate_caner_symbols(caner_score):
         # Create partial icon with cropped width
         icons_html_parts.append(
             f'<span class="caner-icon-partial" style="--crop-percentage: {width_px}px">'
-            '<img src="/static/img/caner.png" class="light-caner">'
-            '<img src="/static/img/darkcaner.png" class="dark-caner">'
+            '<img alt="" aria-hidden="true" src="/static/img/caner.png" class="light-caner">'
+            '<img alt="" aria-hidden="true" src="/static/img/darkcaner.png" class="dark-caner">'
             "</span>"
         )
 

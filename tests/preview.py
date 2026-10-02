@@ -63,4 +63,6 @@ def load_preview():
 
 if __name__ == "__main__":
     module, _ = load_preview()
-    module.app.run(host="0.0.0.0", port=30823, threaded=True)
+    from gevent.pywsgi import WSGIServer
+
+    WSGIServer(("0.0.0.0", 30823), module.app).serve_forever()
