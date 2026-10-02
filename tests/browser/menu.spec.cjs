@@ -6,16 +6,6 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/meal_image?**', route => route.fulfill({ json: { found: false } }));
 });
 
-test.afterEach(async ({ page }, testInfo) => {
-  const name = testInfo.title.split(':')[0];
-  if (!['desktop', 'mobile', 'narrow', 'tablet', 'dark', 'expert-desktop', 'expert-mobile'].includes(name)) return;
-  const screenshot = await page.screenshot({ path: testInfo.outputPath(`${name}.jpg`), type: 'jpeg', quality: 70 });
-  // Optional transport for reviewers whose environment cannot download ZIP artifacts.
-  if (process.env.PRINT_REVIEW_IMAGES === 'true' && testInfo.project.name === 'chromium' && ['desktop', 'mobile', 'dark', 'expert-desktop', 'expert-mobile'].includes(name)) {
-    console.log(`CANER_REVIEW_IMAGE ${name} ${screenshot.toString('base64')}`);
-  }
-});
-
 async function openMenu(page, language = 'en', expert = false) {
   await page.goto(`/?lang=${language}${expert ? '&expert=true' : ''}`);
   await expect(page.getByRole('heading', { name: 'Mensa Garbsen', exact: true })).toBeVisible();
@@ -135,10 +125,7 @@ test('comments show retry, preserve drafts and restore focus', async ({ page }, 
   await expect(dialog.locator('.comment-text').first()).toHaveText(draft);
   await expect(dialog.locator('.comment-text img')).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Comment', exact: true })).toBeFocused();
-  if (process.env.PRINT_REVIEW_IMAGES === 'true' && testInfo.project.name === 'chromium') {
-    const screenshot = await page.screenshot({ type: 'jpeg', quality: 70 });
-    console.log(`CANER_REVIEW_IMAGE comments ${screenshot.toString('base64')}`);
-  }
+  await page.screenshot({ path: testInfo.outputPath('comments.png') });
   await checkAccessibility(page, testInfo);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
@@ -219,8 +206,11 @@ test('late comments cannot replace a newly opened meal', async ({ page }) => {
   });
   await triggers.nth(0).click();
   await requestStarted;
+  await expect(page.getByRole('dialog')).toBeFocused();
+  const cancelled = page.waitForEvent('requestfailed', request => new URL(request.url()).pathname === '/api/comments/1');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeHidden();
+  await cancelled;
   await triggers.nth(1).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading')).toContainText('Pasta');

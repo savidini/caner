@@ -778,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let colorNegative, colorPositive, colorCenter;
 
         if (isDarkMode) {
-            colorNegative = '#ff5555'; // Dark mode Downvote Red
+            colorNegative = '#ff808a'; // Readable on both dark table row backgrounds
             colorCenter = '#FFB86C';   // Dark mode Center Yellow/Orange
             colorPositive = '#50fa7b'; // Dark mode Upvote Green
         } else {

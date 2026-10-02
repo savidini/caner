@@ -45,14 +45,13 @@ jobs:
           docker exec caner-preview curl -fsS http://localhost:30823/health
       - name: Browser, accessibility and loading checks
         if: ${{ !cancelled() && steps.preview.outcome == 'success' }}
-        run: docker run --name caner-browser --network caner-checks -e PRINT_REVIEW_IMAGES=true caner-browser
+        run: docker run --name caner-browser --network caner-checks caner-browser
       - name: Collect review artifacts
         if: always()
         run: |
           mkdir -p artifacts
           docker cp caner-browser:/checks/test-results artifacts/browser || true
           docker logs caner-preview > artifacts/preview.log 2>&1 || true
-          tail -80 artifacts/preview.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

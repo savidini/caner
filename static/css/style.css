@@ -1818,7 +1818,7 @@ input#date-mobile.form-control:focus,
     display: grid;
     align-items: center;
     gap: 0.45rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     padding: 0.15rem 0.45rem 0;
 }
 
