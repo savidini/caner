@@ -210,12 +210,12 @@ test('late comments cannot replace a newly opened meal', async ({ page }) => {
   const cancelled = page.waitForEvent('requestfailed', request => new URL(request.url()).pathname === '/api/comments/1');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeHidden();
-  await cancelled;
   await triggers.nth(1).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading')).toContainText('Pasta');
   await expect(dialog.locator('.comment-item').first()).toBeVisible();
   release();
+  await cancelled;
   await expect(dialog).not.toContainText('Stale response');
 });
 
