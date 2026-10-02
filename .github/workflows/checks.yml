@@ -45,7 +45,7 @@ jobs:
           docker exec caner-preview curl -fsS http://localhost:30823/health
       - name: Browser, accessibility and loading checks
         if: ${{ !cancelled() && steps.preview.outcome == 'success' }}
-        run: docker run --name caner-browser --network caner-checks caner-browser
+        run: docker run --name caner-browser --network caner-checks -e PRINT_REVIEW_IMAGES=true caner-browser
       - name: Collect review artifacts
         if: always()
         run: |

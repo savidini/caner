@@ -6,6 +6,16 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/meal_image?**', route => route.fulfill({ json: { found: false } }));
 });
 
+test.afterEach(async ({ page }, testInfo) => {
+  const name = testInfo.title.split(':')[0];
+  if (!['desktop', 'mobile', 'narrow', 'tablet', 'dark'].includes(name)) return;
+  const screenshot = await page.screenshot({ path: testInfo.outputPath(`${name}.jpg`), type: 'jpeg', quality: 70 });
+  // Optional transport for reviewers whose environment cannot download ZIP artifacts.
+  if (process.env.PRINT_REVIEW_IMAGES === 'true' && testInfo.project.name === 'chromium' && ['desktop', 'mobile', 'dark'].includes(name)) {
+    console.log(`CANER_REVIEW_IMAGE ${name} ${screenshot.toString('base64')}`);
+  }
+});
+
 async function openMenu(page) {
   await page.goto('/?lang=en');
   await expect(page.getByRole('heading', { name: 'Mensa Garbsen', exact: true })).toBeVisible();

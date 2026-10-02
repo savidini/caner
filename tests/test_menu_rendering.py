@@ -69,6 +69,8 @@ def test_html_contains_social_totals_and_sets_one_actor_cookie(menu):
     client = app.app.test_client()
     response = client.get("/?lang=en")
     assert response.status_code == 200
+    assert response.cache_control.private
+    assert response.cache_control.no_store
     assert b'class="upvote-count">1</span>' in response.data
     assert b'class="comment-count">1</span>' in response.data
     assert client.get_cookie("client_id") is not None

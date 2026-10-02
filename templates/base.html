@@ -75,18 +75,18 @@
     <script>
       (function () {
         try {
-        const savedPreference = localStorage.getItem("themePreference");
-        const legacyDarkMode = localStorage.getItem("darkMode");
-        const preference = savedPreference || (
-          legacyDarkMode === "enabled" ? "dark" :
-          legacyDarkMode === "disabled" ? "light" :
-          "system"
-        );
-        const systemDark = window.matchMedia &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches;
-        if (preference === "dark" || (preference === "system" && systemDark)) {
-          document.documentElement.setAttribute("data-theme", "dark");
-        }
+          const savedPreference = localStorage.getItem("themePreference");
+          const legacyDarkMode = localStorage.getItem("darkMode");
+          const preference = savedPreference || (
+            legacyDarkMode === "enabled" ? "dark" :
+            legacyDarkMode === "disabled" ? "light" :
+            "system"
+          );
+          const systemDark = window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (preference === "dark" || (preference === "system" && systemDark)) {
+            document.documentElement.setAttribute("data-theme", "dark");
+          }
         } catch (_) {
           if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
             document.documentElement.setAttribute("data-theme", "dark");

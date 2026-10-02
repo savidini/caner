@@ -903,6 +903,8 @@ def index():
             )
         )
         set_language_cookie(response, language)
+        response.cache_control.private = True
+        response.cache_control.no_store = True
         if not request.cookies.get("client_id"):
             set_client_id_cookie(response, get_client_id())
         return response
