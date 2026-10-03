@@ -1,16 +1,20 @@
 document.addEventListener('DOMContentLoaded', function() {
+    const preferences = {
+        get(key) { try { return localStorage.getItem(key); } catch (_) { return null; } },
+        set(key, value) { try { localStorage.setItem(key, value); } catch (_) { /* Optional storage. */ } }
+    };
     const darkModeToggle = document.getElementById('darkModeToggle');
     const html = document.documentElement;
     const darkModeIcon = darkModeToggle ? darkModeToggle.querySelector('i') : null;
     const systemThemeQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
     function getThemePreference() {
-        const savedPreference = localStorage.getItem('themePreference');
+        const savedPreference = preferences.get('themePreference');
         if (savedPreference === 'light' || savedPreference === 'dark' || savedPreference === 'system') {
             return savedPreference;
         }
 
-        const legacyDarkMode = localStorage.getItem('darkMode');
+        const legacyDarkMode = preferences.get('darkMode');
         if (legacyDarkMode === 'enabled') {
             return 'dark';
         }
@@ -47,15 +51,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     let themePreference = getThemePreference();
-    localStorage.setItem('themePreference', themePreference);
+    preferences.set('themePreference', themePreference);
     applyTheme(themePreference);
 
     if (darkModeToggle) {
         darkModeToggle.addEventListener('click', function() {
             const isDarkTheme = html.getAttribute('data-theme') === 'dark';
             themePreference = isDarkTheme ? 'light' : 'dark';
-            localStorage.setItem('themePreference', themePreference);
-            localStorage.setItem('darkMode', themePreference === 'dark' ? 'enabled' : 'disabled');
+            preferences.set('themePreference', themePreference);
+            preferences.set('darkMode', themePreference === 'dark' ? 'enabled' : 'disabled');
             applyTheme(themePreference);
             if (typeof applyExpertModeStyles === 'function') {
                 applyExpertModeStyles();
@@ -65,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (systemThemeQuery) {
         systemThemeQuery.addEventListener('change', function() {
-            if (getThemePreference() === 'system') {
+            if (themePreference === 'system') {
                 applyTheme('system');
                 if (typeof applyExpertModeStyles === 'function') {
                     applyExpertModeStyles();
@@ -111,113 +115,75 @@ document.addEventListener('DOMContentLoaded', function() {
 
         buttons.forEach(button => {
             button.addEventListener('click', function() {
-                selectPriceType(button.dataset.priceType || 'student');
+                const priceType = button.dataset.priceType || 'student';
+                selectPriceType(priceType);
+                preferences.set('priceType', priceType);
+                const url = new URL(window.location);
+                url.searchParams.set('price', priceType);
+                window.history.replaceState(null, '', url);
+
             });
         });
 
-        selectPriceType('student');
+        const requestedPrice = new URLSearchParams(window.location.search).get('price') || preferences.get('priceType');
+        selectPriceType(['student', 'employee', 'guest'].includes(requestedPrice) ? requestedPrice : 'student');
     });
     
-    // Meal voting functionality
+    // The server renders initial totals and today's vote; no startup API requests.
+    const pendingVotes = new Set();
+    function voteControlsFor(mealId) {
+        return document.querySelectorAll(`.vote-controls[data-meal-id="${mealId}"]`);
+    }
+
     function initMealVoting() {
-        // Find all vote controls in the document
-        const voteControls = document.querySelectorAll('.vote-controls');
-        
-        // For each vote control section
-        voteControls.forEach(controls => {
-            const mealId = controls.dataset.mealId;
-            const upvoteBtn = controls.querySelector('.upvote-btn');
-            const downvoteBtn = controls.querySelector('.downvote-btn');
-            const upvoteCount = controls.querySelector('.upvote-count');
-            const downvoteCount = controls.querySelector('.downvote-count');
-            
-            // Skip if any element is missing
-            if (!mealId || !upvoteBtn || !downvoteBtn || !upvoteCount || !downvoteCount) {
-                console.error('Missing elements in vote controls');
-                return;
-            }
-            
-            // Load initial vote counts from the server
-            loadVoteCounts(mealId, upvoteCount, downvoteCount, upvoteBtn, downvoteBtn);
-            
-            // Add event listeners for vote buttons
-            upvoteBtn.addEventListener('click', function() {
-                submitVote(mealId, 'up', upvoteCount, downvoteCount, upvoteBtn, downvoteBtn);
-            });
-            
-            downvoteBtn.addEventListener('click', function() {
-                submitVote(mealId, 'down', upvoteCount, downvoteCount, upvoteBtn, downvoteBtn);
+        document.querySelectorAll('.vote-controls').forEach(controls => {
+            controls.querySelectorAll('.vote-btn').forEach(button => {
+                button.addEventListener('click', () => submitVote(
+                    controls.dataset.mealId, button.classList.contains('upvote-btn') ? 'up' : 'down'
+                ));
             });
         });
     }
-    
-    // Load vote counts from the server
-    function loadVoteCounts(mealId, upvoteCount, downvoteCount, upvoteBtn, downvoteBtn) {
-        fetch(`/api/votes/${mealId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Update vote counts
-                upvoteCount.textContent = data.votes.up;
-                downvoteCount.textContent = data.votes.down;
-                
-                // If the user has already voted, highlight the button
-                if (data.has_voted) {
-                    // Check user's stored votes in local storage
-                    const storedVote = localStorage.getItem(`meal_vote_${mealId}`);
-                    if (storedVote === 'up') {
-                        upvoteBtn.classList.add('active');
-                    } else if (storedVote === 'down') {
-                        downvoteBtn.classList.add('active');
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error loading vote counts:', error);
-            });
-    }
-    
-    // Submit a vote to the server
-    function submitVote(mealId, voteType, upvoteCount, downvoteCount, upvoteBtn, downvoteBtn) {
-        // Create request payload
-        const payload = {
-            meal_id: mealId,
-            vote_type: voteType
-        };
-        
-        // Send the vote to the server
-        fetch('/api/vote', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            // Update vote counts
-            upvoteCount.textContent = data.votes.up;
-            downvoteCount.textContent = data.votes.down;
-            
-            // Update active state of vote buttons
-            upvoteBtn.classList.toggle('active', voteType === 'up');
-            downvoteBtn.classList.toggle('active', voteType === 'down');
-            
-            // Store the vote in local storage to remember which button was clicked
-            localStorage.setItem(`meal_vote_${mealId}`, voteType);
-        })
-        .catch(error => {
-            console.error('Error submitting vote:', error);
+
+    async function submitVote(mealId, voteType) {
+        if (pendingVotes.has(mealId)) return;
+        pendingVotes.add(mealId);
+        const controls = voteControlsFor(mealId);
+        controls.forEach(control => {
+            control.querySelectorAll('button').forEach(button => { button.disabled = true; });
+            control.parentElement.querySelector('.meal-feedback').textContent = '';
         });
+        try {
+            const response = await fetch('/api/vote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ meal_id: mealId, vote_type: voteType })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            controls.forEach(control => {
+                ['up', 'down'].forEach(kind => {
+                    control.querySelector(`.${kind}vote-count`).textContent = data.votes[kind];
+                    const button = control.querySelector(`.${kind}vote-btn`);
+                    button.classList.toggle('active', kind === voteType);
+                    button.setAttribute('aria-pressed', String(kind === voteType));
+                });
+                const status = control.parentElement.querySelector('.meal-feedback');
+                status.classList.remove('is-error');
+                status.classList.add('visually-hidden');
+                status.textContent = getCommentText('vote_saved', 'Vote saved.');
+            });
+        } catch (_) {
+            controls.forEach(control => {
+                const status = control.parentElement.querySelector('.meal-feedback');
+                status.classList.remove('visually-hidden');
+                status.classList.add('is-error');
+                status.textContent = getCommentText('vote_failed', 'Vote not saved. Please try again.');
+            });
+        } finally {
+            pendingVotes.delete(mealId);
+            controls.forEach(control => control.querySelectorAll('button').forEach(button => { button.disabled = false; }));
+        }
     }
 
     function getCommentLanguage() {
@@ -251,6 +217,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const mealImageModalTitle = mealImageModalElement ? mealImageModalElement.querySelector('#mealImagePopupModalLabel') : null;
     const mealImageModalBody = mealImageModalElement ? mealImageModalElement.querySelector('#mealImagePopupBody') : null;
     const mealImageDataCache = new Map();
+    let imageGeneration = 0;
+    let imageTrigger = null;
+    let commentGeneration = 0;
+    let commentTrigger = null;
+    let commentRequest = null;
+    const commentStatus = document.getElementById('commentStatus');
+    function setCommentStatus(key, isError = false) {
+        commentStatus.textContent = key ? getCommentText(key, key) : '';
+        commentStatus.classList.toggle('is-error', isError);
+    }
+    mealImageModalElement?.addEventListener('hidden.bs.modal', () => {
+        imageGeneration++;
+        imageTrigger?.focus();
+    });
+    commentModalElement?.addEventListener('hidden.bs.modal', () => {
+        commentGeneration++;
+        commentRequest?.abort();
+        commentTrigger?.focus();
+    });
 
     function setMealImageStatus(message, isError) {
         if (!mealImageModalBody) {
@@ -287,7 +272,11 @@ document.addEventListener('DOMContentLoaded', function() {
         image.className = 'meal-image-preview';
         image.src = imageUrl;
         image.alt = mealTitle;
-        image.loading = 'lazy';
+        image.addEventListener('error', () => {
+            if (mealImageModalBody.contains(image)) {
+                setMealImageStatus(getCommentText('meal_image_unavailable', 'No image available.'), true);
+            }
+        }, { once: true });
         mealImageModalBody.appendChild(image);
     }
 
@@ -324,6 +313,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
                 return response.json();
+            }).catch(error => {
+                mealImageDataCache.delete(cacheKey);
+                throw error;
             });
 
         mealImageDataCache.set(cacheKey, imageDataPromise);
@@ -336,6 +328,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        const generation = ++imageGeneration;
+        imageTrigger = toggle;
         const mealTitle = toggle.dataset.mealTitle || getCommentText('meal_image', 'Meal image');
         mealImageModalTitle.textContent = mealTitle;
         if (toggle.dataset.imageUrl) {
@@ -349,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fetchMealImageData(toggle)
             .then(data => {
+                if (generation !== imageGeneration) return;
                 if (data.found && data.image_url) {
                     renderMealImage(data.image_url, mealTitle);
                     return;
@@ -356,22 +351,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 setMealImageStatus(data.message || getCommentText('meal_image_unavailable', 'No image available.'), false);
             })
             .catch(error => {
+                if (generation !== imageGeneration) return;
                 console.error('Error loading meal image:', error);
                 const template = getCommentText('meal_image_lookup_failed', 'The image could not be loaded: {error}');
                 setMealImageStatus(template.replace('{error}', error.message), true);
             });
-    }
-
-    function setMealThumbnailLayout(thumbnail, hasThumbnail) {
-        const mobileCardMain = thumbnail.closest('.mobile-meal-card-main');
-        if (mobileCardMain) {
-            mobileCardMain.classList.toggle('has-meal-thumbnail', hasThumbnail);
-        }
-
-        const desktopMeal = thumbnail.closest('.meal-table-meal');
-        if (desktopMeal) {
-            desktopMeal.classList.toggle('has-meal-thumbnail', hasThumbnail);
-        }
     }
 
     function hideMealThumbnail(thumbnail) {
@@ -380,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
         thumbnail.removeAttribute('data-image-url');
         thumbnail.removeAttribute('data-thumbnail-url');
         thumbnail.replaceChildren();
-        setMealThumbnailLayout(thumbnail, false);
+        thumbnail.parentElement.querySelector('.meal-thumbnail-slot').hidden = false;
     }
 
     function renderMealThumbnail(thumbnail, thumbnailUrl, imageUrl) {
@@ -403,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         thumbnail.replaceChildren(image);
         thumbnail.hidden = false;
-        setMealThumbnailLayout(thumbnail, true);
+        thumbnail.parentElement.querySelector('.meal-thumbnail-slot').hidden = true;
     }
 
     function loadMealThumbnail(thumbnail) {
@@ -414,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
         thumbnail.classList.add('is-loading');
         thumbnail.hidden = true;
 
-        fetchMealImageData(thumbnail)
+        return fetchMealImageData(thumbnail)
             .then(data => {
                 const thumbnailUrl = data.thumbnail_url || data.image_url;
                 if (data.found && thumbnailUrl && data.image_url) {
@@ -511,28 +495,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function loadCommentCount(mealId) {
-        const params = new URLSearchParams({
-            limit: '1',
-            offset: '0',
-            lang: getCommentLanguage()
-        });
-
-        fetch(`/api/comments/${mealId}?${params.toString()}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                updateCommentCounts(mealId, data.count || 0);
-            })
-            .catch(error => {
-                console.error('Error loading comment count:', error);
-            });
-    }
-
     function loadComments(append) {
         if (!commentModalElement) {
             return;
@@ -541,6 +503,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!mealId) {
             return;
         }
+        commentRequest?.abort();
+        const controller = new AbortController();
+        commentRequest = controller;
+        setCommentStatus('comments_loading');
         const offset = append ? Number.parseInt(commentModalElement.dataset.loadedCount || '0', 10) : 0;
         const params = new URLSearchParams({
             limit: '5',
@@ -552,7 +518,7 @@ document.addEventListener('DOMContentLoaded', function() {
             commentLoadMoreBtn.disabled = true;
         }
 
-        fetch(`/api/comments/${mealId}?${params.toString()}`)
+        fetch(`/api/comments/${mealId}?${params.toString()}`, { signal: controller.signal })
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error ${response.status}`);
@@ -560,6 +526,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
+                if (commentRequest !== controller) return;
+                setCommentStatus('');
                 renderCommentList(data.comments || [], append);
                 const loadedCount = append
                     ? offset + (data.comments || []).length
@@ -568,13 +536,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateCommentCounts(mealId, data.count || 0);
                 if (commentLoadMoreBtn) {
                     commentLoadMoreBtn.classList.toggle('d-none', !data.has_more);
+                    commentLoadMoreBtn.textContent = getCommentText('load_more_comments', 'Load more comments');
+                    delete commentLoadMoreBtn.dataset.retry;
                 }
             })
             .catch(error => {
-                console.error('Error loading comments:', error);
+                if (error.name === 'AbortError' || commentRequest !== controller) return;
+                setCommentStatus('comments_failed', true);
+                commentLoadMoreBtn.dataset.retry = append ? 'append' : 'reload';
+                commentLoadMoreBtn.textContent = getCommentText('retry', 'Try again');
+                commentLoadMoreBtn.classList.remove('d-none');
             })
             .finally(() => {
-                if (commentLoadMoreBtn) {
+                if (commentLoadMoreBtn && commentRequest === controller) {
                     commentLoadMoreBtn.disabled = false;
                 }
             });
@@ -616,6 +590,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         const mealTitle = toggle.dataset.mealTitle || getCommentText('comments', 'Comments');
+        commentGeneration++;
+        commentTrigger = toggle;
         commentModalElement.dataset.mealId = mealId;
         commentModalElement.dataset.loadedCount = '0';
         commentModalTitle.textContent = mealTitle;
@@ -643,6 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!commentModalElement || !commentModalElement.dataset.mealId) {
                     return;
                 }
+                const generation = commentGeneration;
                 const submitBtn = commentForm.querySelector('.comment-submit-btn');
                 const activeRating = commentForm.querySelector('.comment-rating-btn.active');
                 const nameInput = commentForm.querySelector('.comment-name-input');
@@ -655,7 +632,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     lang: getCommentLanguage()
                 };
 
+                setCommentStatus('');
                 if (submitBtn) {
+                    if (submitBtn.disabled) return;
                     submitBtn.disabled = true;
                 }
 
@@ -675,16 +654,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     return response.json();
                 })
                 .then(data => {
+                    updateCommentCounts(payload.meal_id, data.count || 0);
+                    if (generation !== commentGeneration) return;
                     resetCommentForm();
-                    updateCommentCounts(commentModalElement.dataset.mealId, data.count || 0);
                     loadComments(false);
                 })
                 .catch(error => {
-                    console.error('Error submitting comment:', error);
+                    if (generation === commentGeneration) setCommentStatus('comment_failed', true);
                 })
                 .finally(() => {
                     if (submitBtn) {
                         submitBtn.disabled = false;
+                        if (generation === commentGeneration && document.activeElement === document.body) {
+                            submitBtn.focus();
+                        }
                     }
                 });
             });
@@ -692,17 +675,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (commentLoadMoreBtn) {
             commentLoadMoreBtn.addEventListener('click', function() {
-                loadComments(true);
+                loadComments(commentLoadMoreBtn.dataset.retry !== 'reload');
             });
         }
 
-        const countedMealIds = new Set();
         document.querySelectorAll('.comment-toggle-btn').forEach(toggle => {
-            if (toggle.dataset.mealId && !countedMealIds.has(toggle.dataset.mealId)) {
-                countedMealIds.add(toggle.dataset.mealId);
-                loadCommentCount(toggle.dataset.mealId);
-            }
-
             toggle.addEventListener('click', function() {
                 openCommentPopup(toggle);
             });
@@ -710,17 +687,35 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function initMealImages() {
-        const imageToggles = document.querySelectorAll('.meal-image-thumbnail-toggle');
-        if (!imageToggles.length) {
-            return;
-        }
-
-        imageToggles.forEach(toggle => {
-            toggle.addEventListener('click', function() {
-                openMealImagePopup(toggle);
+        const queue = [];
+        let active = 0;
+        const observer = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                observer.unobserve(entry.target);
+                queue.push(entry.target.querySelector('.meal-image-thumbnail-toggle'));
             });
-            loadMealThumbnail(toggle);
+            drain();
+        }, { rootMargin: '160px' }) : null;
+
+        function drain() {
+            while (active < 3 && queue.length) {
+                const thumbnail = queue.shift();
+                const container = thumbnail.parentElement;
+                if (observer && !container.getClientRects().length) {
+                    observer.observe(container);
+                    continue;
+                }
+                active++;
+                Promise.resolve(loadMealThumbnail(thumbnail)).finally(() => { active--; drain(); });
+            }
+        }
+        document.querySelectorAll('.meal-image-thumbnail-toggle').forEach(toggle => {
+            toggle.addEventListener('click', () => openMealImagePopup(toggle));
+            if (observer) observer.observe(toggle.parentElement);
+            else queue.push(toggle);
         });
+        drain();
     }
 
     // Initialize meal voting and comments after their DOM helpers are ready.
@@ -743,7 +738,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let expertModeEnabled = expertModeFromUrl;
     
     // Sync localStorage with the URL state to maintain consistency
-    localStorage.setItem('expertModeEnabled', expertModeEnabled.toString());
+    preferences.set('expertModeEnabled', expertModeEnabled.toString());
 
     // Helper functions for color interpolation
     function hexToRgb(hex) {
@@ -783,16 +778,17 @@ document.addEventListener('DOMContentLoaded', function() {
         let colorNegative, colorPositive, colorCenter;
 
         if (isDarkMode) {
-            colorNegative = '#ff5555'; // Dark mode Downvote Red
+            colorNegative = '#ff808a'; // Readable on both dark table row backgrounds
             colorCenter = '#FFB86C';   // Dark mode Center Yellow/Orange
             colorPositive = '#50fa7b'; // Dark mode Upvote Green
         } else {
-            colorNegative = '#dc3545'; // Light mode Downvote Red
-            colorCenter = '#ffcc00';   // Light mode Center Yellow
-            colorPositive = '#28a745'; // Light mode Upvote Green
+            colorNegative = '#b42336'; // Light mode Downvote Red
+            colorCenter = '#775500';   // Light mode Center Yellow
+            colorPositive = '#176b3a'; // Light mode Upvote Green
         }
 
         expertModeCols.forEach(col => {
+            col.classList.toggle('d-none', !expertModeEnabled);
             if (col.tagName === 'TH' || col.tagName === 'TD') {
                 col.style.display = expertModeEnabled ? 'table-cell' : 'none';
             } else if (col.classList.contains('mobile-expert-info-row')) {
@@ -933,17 +929,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         expertModeToggleIcon.addEventListener('click', function() {
             expertModeEnabled = !expertModeEnabled; // Toggle the state
-            localStorage.setItem('expertModeEnabled', expertModeEnabled.toString());
+            preferences.set('expertModeEnabled', expertModeEnabled.toString());
             applyExpertModeStyles();
 
-            // Reload the page with the expert parameter to apply the change
+            // Keep the menu and focus in place while updating the shareable URL.
             const url = new URL(window.location);
             if (expertModeEnabled) {
                 url.searchParams.set('expert', 'true');
             } else {
                 url.searchParams.delete('expert');
             }
-            window.location.href = url.toString();
+            window.history.replaceState(null, '', url);
         });
     }
 

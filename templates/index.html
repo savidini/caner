@@ -1,69 +1,38 @@
 {% extends "base.html" %}
 
-{% macro selectors(mensa, date_input_id, mensa_select_id) %}
-  <div class="dropdown themed-dropdown mensa-dropdown">
-    <input type="hidden" name="mensa" id="{{ mensa_select_id }}" value="{{ mensa }}">
-    <button class="btn btn-sm dropdown-toggle themed-select-toggle mensa-select-toggle"
-            type="button"
-            id="{{ mensa_select_id }}-dropdown"
-            data-bs-toggle="dropdown"
-            aria-expanded="false">
-      <span class="themed-select-label">{{ mensa }}</span>
-    </button>
-    <ul class="dropdown-menu themed-dropdown-menu" aria-labelledby="{{ mensa_select_id }}-dropdown">
-      {% for option_mensa in available_mensen %}
-        <li>
-          <button type="button"
-                  class="dropdown-item themed-dropdown-item mensa-dropdown-item{% if option_mensa == mensa %} active{% endif %}"
-                  data-target-input="{{ mensa_select_id }}"
-                  data-date-input="{{ date_input_id }}"
-                  data-value="{{ option_mensa }}"
-                  {% if option_mensa == mensa %}aria-current="true"{% endif %}>
-            {{ option_mensa }}
-          </button>
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
-{% endmacro %}
-
 {% macro mensa_header(mensa, show_controls=True) %}
+  <div class="menu-heading">
+    <h2>{{ mensa }}</h2>
+    <p>{{ texts.menu_intro }}</p>
+  </div>
   {% if show_controls %}
-    <div class="selectors-row-mobile d-flex justify-content-between align-items-center mb-2">
-      <div class="d-flex align-items-center control-group">
-        <a href="#" role="button" class="btn btn-sm btn-outline-secondary date-nav-arrow" data-direction="prev" title="{{ texts.previous_day }}" aria-label="{{ texts.previous_day }}"><i class="fas fa-chevron-left" aria-hidden="true"></i></a>
-        <input type="text" name="date" id="date-mobile" class="form-control form-control-sm" value="{{ selected_date }}" readonly aria-label="{{ texts.date_picker_label }}">
+    <div class="menu-toolbar">
+      <div class="menu-date-control">
+        <label for="date" class="visually-hidden">{{ texts.date_picker_label }}</label>
+        <button type="button" class="btn date-nav-arrow" data-direction="prev" title="{{ texts.previous_day }}" aria-label="{{ texts.previous_day }}"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+        <select name="date" id="date" class="form-select">
+          {% if selected_date not in available_dates %}
+            <option value="{{ selected_date }}" selected>{{ selected_date|format_date(language) }}</option>
+          {% endif %}
+          {% for menu_date in available_dates %}
+            <option value="{{ menu_date }}"{% if menu_date == selected_date %} selected{% endif %}>{{ menu_date|format_date(language) }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" class="btn date-nav-arrow" data-direction="next" title="{{ texts.next_day }}" aria-label="{{ texts.next_day }}"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <div class="d-flex align-items-center control-group">
-        {{ selectors(mensa, "date-mobile", "mensa-mobile") }}
-        <a href="#" role="button" class="btn btn-sm btn-outline-secondary date-nav-arrow" data-direction="next" title="{{ texts.next_day }}" aria-label="{{ texts.next_day }}"><i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+      <div class="menu-mensa-control">
+        <label for="mensa" class="visually-hidden">{{ texts.canteen_label }}</label>
+        <select name="mensa" id="mensa" class="form-select">
+          {% if mensa not in available_mensen %}
+            <option value="{{ mensa }}" selected>{{ mensa }}</option>
+          {% endif %}
+          {% for option_mensa in available_mensen %}
+            <option value="{{ option_mensa }}"{% if option_mensa == mensa %} selected{% endif %}>{{ option_mensa }}</option>
+          {% endfor %}
+        </select>
       </div>
     </div>
   {% endif %}
-
-  <h2 class="mensa-title-desktop d-flex align-items-center justify-content-between">
-    {% if show_controls %}
-      <div class="d-flex align-items-center mensa-title-control mensa-title-control-left">
-        <a href="#" role="button" class="btn btn-sm btn-outline-secondary date-nav-arrow" data-direction="prev" title="{{ texts.previous_day }}" aria-label="{{ texts.previous_day }}"><i class="fas fa-chevron-left" aria-hidden="true"></i></a>
-        <input type="text" name="date" id="date" class="form-control form-control-sm" value="{{ selected_date }}" readonly aria-label="{{ texts.date_picker_label }}">
-      </div>
-    {% endif %}
-    <span class="mensa-name-and-emoji-wrapper text-center">
-      <span class="mensa-name-text">{{ mensa }}</span>
-    </span>
-    {% if show_controls %}
-      <div class="d-flex align-items-center mensa-title-control mensa-title-control-right">
-        {{ selectors(mensa, "date", "mensa") }}
-        <a href="#" role="button" class="btn btn-sm btn-outline-secondary date-nav-arrow" data-direction="next" title="{{ texts.next_day }}" aria-label="{{ texts.next_day }}"><i class="fas fa-chevron-right" aria-hidden="true"></i></a>
-      </div>
-    {% endif %}
-  </h2>
-
-  <h2 class="mensa-title-mobile text-center">
-    <span class="mensa-name-and-emoji-wrapper">
-      <span class="mensa-name-text">{{ mensa }}</span>
-    </span>
-  </h2>
 {% endmacro %}
 
 {% macro dietary_legend() %}
@@ -176,6 +145,7 @@
 
 {% macro meal_image_button(meal, mensa, selected_date) %}
   {% if meal.id %}
+    <div class="meal-thumbnail-slot" aria-hidden="true"><i class="fas fa-utensils"></i></div>
     <button type="button"
             class="btn btn-sm meal-image-toggle-btn meal-image-thumbnail-toggle"
             data-meal-id="{{ meal.id }}"
@@ -191,12 +161,12 @@
 
 {% macro meal_name(meal) %}
   <div class="meal-name-row">
-    <strong class="meal-name-text">{{ meal.display_description }}</strong>
+    <h3 class="meal-name-text">{{ meal.display_description }}</h3>
   </div>
 {% endmacro %}
 
 {% macro desktop_meal_summary(meal, mensa, selected_date) %}
-  <div class="meal-table-meal">
+  <div class="meal-table-meal{% if meal.id %} has-meal-thumbnail{% endif %}">
     {{ meal_image_button(meal, mensa, selected_date) }}
     <div class="meal-table-meal-content">
       {{ meal_name(meal) }}
@@ -209,16 +179,17 @@
   <div class="food-markings-row meal-action-row">
     {{ meal.marking|get_dietary_info(language)|safe }}
     {% if meal.nutritional_values %}
-      <span class="nutrient-info-trigger" data-bs-toggle="popover" data-bs-trigger="click" data-bs-placement="top" data-bs-html="true" data-bs-content="{{ meal.nutritional_values|format_nutritional_values(language)|safe }}" title="{{ texts.nutritional_values }}" style="cursor: help;" role="button" tabindex="0" aria-label="{{ texts.nutritional_values }}">
+      <button type="button" class="nutrient-info-trigger" data-bs-toggle="popover" data-bs-trigger="click" data-bs-placement="top" data-bs-html="true" data-bs-content="{{ meal.nutritional_values|format_nutritional_values(language)|e }}" title="{{ texts.nutritional_values }}" aria-expanded="false" aria-label="{{ texts.nutritional_values }}">
         <i class="fas fa-info-circle text-info" aria-hidden="true"></i>
-      </span>
-    {% endif %}
-    <div class="vote-controls" data-meal-id="{{ meal.id }}">
-      <button class="btn btn-sm vote-btn upvote-btn" type="button" title="{{ texts.vote_up }}" aria-label="{{ texts.vote_up }}">
-        <i class="fas fa-thumbs-up" aria-hidden="true"></i> <span class="upvote-count">0</span>
       </button>
-      <button class="btn btn-sm vote-btn downvote-btn" type="button" title="{{ texts.vote_down }}" aria-label="{{ texts.vote_down }}">
-        <i class="fas fa-thumbs-down" aria-hidden="true"></i> <span class="downvote-count">0</span>
+    {% endif %}
+    {% if meal.id %}
+    <div class="vote-controls" data-meal-id="{{ meal.id }}">
+      <button class="btn btn-sm vote-btn upvote-btn{% if meal.vote_type == 'up' %} active{% endif %}" aria-pressed="{{ 'true' if meal.vote_type == 'up' else 'false' }}" type="button" title="{{ texts.vote_up }}" aria-label="{{ texts.vote_up }}">
+        <i class="fas fa-thumbs-up" aria-hidden="true"></i> <span class="upvote-count">{{ meal.votes.up }}</span>
+      </button>
+      <button class="btn btn-sm vote-btn downvote-btn{% if meal.vote_type == 'down' %} active{% endif %}" aria-pressed="{{ 'true' if meal.vote_type == 'down' else 'false' }}" type="button" title="{{ texts.vote_down }}" aria-label="{{ texts.vote_down }}">
+        <i class="fas fa-thumbs-down" aria-hidden="true"></i> <span class="downvote-count">{{ meal.votes.down }}</span>
       </button>
     </div>
     <button type="button"
@@ -229,13 +200,16 @@
             aria-label="{{ texts.show_comments }}"
             aria-haspopup="dialog">
       <i class="fas fa-comment" aria-hidden="true"></i>
-      <span class="comment-count">0</span>
+      <span class="comment-count">{{ meal.comment_count }}</span>
     </button>
+    {% endif %}
+    <span class="meal-feedback" role="status"></span>
   </div>
 {% endmacro %}
 
 {% macro mobile_meal_thumbnail(meal, mensa, selected_date) %}
   {% if meal.id %}
+    <div class="meal-thumbnail-slot" aria-hidden="true"><i class="fas fa-utensils"></i></div>
     <button type="button"
             class="mobile-meal-thumbnail meal-image-thumbnail-toggle"
             data-meal-id="{{ meal.id }}"
@@ -265,15 +239,16 @@
   {% else %}
     <div class="table-responsive">
       <table class="table meal-table">
+        <caption class="visually-hidden">{{ mensa }} · {{ selected_date|format_date(language) }}</caption>
         <thead>
           <tr>
-            <th>{{ texts.meal }}</th>
-            <th>{{ texts.students }}</th>
-            <th>{{ texts.employees }}</th>
-            <th>{{ texts.guests }}</th>
-            <th class="expert-mode-col{% if not expert_mode %} d-none{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ texts.rkr_nominal_tooltip }}">{{ texts.rkr_nominal }}</th>
-            <th class="expert-mode-col{% if not expert_mode %} d-none{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ texts.rkr_real_tooltip }}">{{ texts.rkr_real }}</th>
-            <th class="expert-mode-col{% if not expert_mode %} d-none{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ texts.mps_tooltip }}">MPS</th>
+            <th scope="col">{{ texts.meal }}</th>
+            <th scope="col">{{ texts.students }}</th>
+            <th scope="col">{{ texts.employees }}</th>
+            <th scope="col">{{ texts.guests }}</th>
+            <th scope="col" class="expert-mode-col{% if not expert_mode %} d-none{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ texts.rkr_nominal_tooltip }}">{{ texts.rkr_nominal }}</th>
+            <th scope="col" class="expert-mode-col{% if not expert_mode %} d-none{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ texts.rkr_real_tooltip }}">{{ texts.rkr_real }}</th>
+            <th scope="col" class="expert-mode-col{% if not expert_mode %} d-none{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ texts.mps_tooltip }}">MPS</th>
           </tr>
         </thead>
         <tbody>
@@ -292,8 +267,8 @@
     <div class="mobile-meal-cards">
       {{ mobile_price_selector() }}
       {% for meal in meals %}
-        <div class="mobile-meal-card">
-          <div class="mobile-meal-card-main">
+        <article class="mobile-meal-card">
+          <div class="mobile-meal-card-main{% if meal.id %} has-meal-thumbnail{% endif %}">
             {{ mobile_meal_thumbnail(meal, mensa, selected_date) }}
             <div class="mobile-meal-card-content">
               <div class="mobile-meal-description">
@@ -305,7 +280,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </article>
       {% endfor %}
       {{ dietary_legend() }}
     </div>
@@ -345,7 +320,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content comment-modal-content">
       <div class="modal-header comment-modal-header">
-        <h5 class="modal-title" id="commentPopupModalLabel">{{ texts.comments }}</h5>
+        <h2 class="modal-title" id="commentPopupModalLabel">{{ texts.comments }}</h2>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ texts.close }}"></button>
       </div>
       <div class="modal-body comment-modal-body">
@@ -360,11 +335,13 @@
               {{ texts.comment_bad }}
             </button>
           </div>
-          <input type="text"
+          <label for="commentName">{{ texts.comment_name_placeholder }}</label>
+          <input type="text" id="commentName" autocomplete="name"
                  class="form-control comment-name-input"
                  maxlength="80"
                  placeholder="{{ texts.comment_name_placeholder }}">
-          <textarea class="form-control comment-text-input"
+          <label for="commentText">{{ texts.comment_text_placeholder }}</label>
+          <textarea id="commentText" class="form-control comment-text-input"
                     maxlength="1000"
                     rows="3"
                     placeholder="{{ texts.comment_text_placeholder }}"></textarea>
@@ -373,6 +350,7 @@
             {{ texts.submit_comment }}
           </button>
         </form>
+        <p id="commentStatus" class="form-status" role="status"></p>
         <div class="comment-list" id="commentPopupList" aria-live="polite"></div>
         <button type="button" class="btn comment-load-more-btn d-none" id="commentPopupLoadMore">
           {{ texts.load_more_comments }}
@@ -386,7 +364,7 @@
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content meal-image-modal-content">
       <div class="modal-header meal-image-modal-header">
-        <h5 class="modal-title" id="mealImagePopupModalLabel">{{ texts.meal_image }}</h5>
+        <h2 class="modal-title" id="mealImagePopupModalLabel">{{ texts.meal_image }}</h2>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ texts.close }}"></button>
       </div>
       <div class="modal-body meal-image-modal-body" id="mealImagePopupBody" aria-live="polite">
@@ -404,7 +382,7 @@
     <div class="modal-content recommendation-modal-content" id="recommendationPopupContent">
       <div class="recommendation-modal-overlay" id="recommendationPopupOverlay">
         <div class="recommendation-modal-header">
-          <h5 class="modal-title" id="recommendationPopupModalLabel">{{ texts.request_recommendation_title }}</h5>
+          <h2 class="modal-title" id="recommendationPopupModalLabel">{{ texts.request_recommendation_title }}</h2>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ texts.close }}"></button>
         </div>
         <div class="recommendation-form">
@@ -428,6 +406,7 @@
           </div>
           <input type="text"
                  id="recommendationCustomRecommender"
+                 aria-label="{{ texts.custom_person_placeholder }}"
                  class="form-control d-none"
                  maxlength="80"
                  placeholder="{{ texts.custom_person_placeholder }}">
@@ -436,7 +415,7 @@
             {{ texts.get_recommendation }}
           </button>
         </div>
-        <div id="recommendationPopupBody" class="recommendation-result">
+        <div id="recommendationPopupBody" class="recommendation-result" role="status">
           <p class="text-muted mb-0">{{ texts.recommendation_intro }}</p>
         </div>
       </div>
@@ -445,320 +424,16 @@
 </div>
 
 <script>
-const mealData = {{ data|tojson|safe }};
+const mealData = {
+{% for mensa, meals in data.items() %}
+  {{ mensa|tojson }}: {{ meals|map(attribute='display_description')|list|tojson }}{% if not loop.last %},{% endif %}
+{% endfor %}
+};
+const availableMenuDates = {{ available_dates|tojson }};
 const currentLanguage = {{ language|tojson|safe }};
 const uiText = {{ texts|tojson|safe }};
 </script>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const recommendationModalElement = document.getElementById('recommendationPopupModal');
-  const recommendationModal = recommendationModalElement ? new bootstrap.Modal(recommendationModalElement) : null;
-  const recommendationModalTitle = recommendationModalElement ? recommendationModalElement.querySelector('#recommendationPopupModalLabel') : null;
-  const recommendationModalBody = recommendationModalElement ? recommendationModalElement.querySelector('#recommendationPopupBody') : null;
-  const recommendationModalContent = recommendationModalElement ? recommendationModalElement.querySelector('#recommendationPopupContent') : null;
-  const recommendationModalOverlay = recommendationModalElement ? recommendationModalElement.querySelector('#recommendationPopupOverlay') : null;
-  const recommendationSelect = document.getElementById('recommendationRecommenderSelect');
-  const recommendationDropdownLabel = document.getElementById('recommendationRecommenderDropdownLabel');
-  const recommendationCustomInput = document.getElementById('recommendationCustomRecommender');
-  const requestRecommendationButton = document.getElementById('requestRecommendationButton');
-  const recommenderProfiles = {
-    Marvin: { backgroundUrl: '/static/img/marvin.jpg' },
-    'Gordon Ramsay': { backgroundUrl: '/static/img/gordon-ramsay.jpg' },
-    'Rick Sanchez': { backgroundUrl: '/static/img/rick-sanchez.jpg' },
-    'Donald Trump': { backgroundUrl: '/static/img/trump.jpg' }
-  };
-  let currentRecommendationMensa = '';
+<script src="{{ url_for('static', filename='js/menu.js') }}" defer></script>
 
-  function applyLanguageParam(params) {
-    if (currentLanguage) {
-      params.set('lang', currentLanguage);
-    }
-  }
-
-  document.querySelectorAll('.mensa-dropdown-item').forEach(item => {
-    item.addEventListener('click', function () {
-      const targetInput = document.getElementById(item.dataset.targetInput);
-      const dateInput = document.getElementById(item.dataset.dateInput);
-      if (!targetInput || !dateInput) {
-        return;
-      }
-      targetInput.value = item.dataset.value || '';
-      const params = new URLSearchParams(window.location.search);
-      params.set('mensa', targetInput.value);
-      params.set('date', dateInput.value);
-      applyLanguageParam(params);
-      window.location.href = `/?${params.toString()}`;
-    });
-  });
-
-  function setRecommendationRecommender(value) {
-    if (!recommendationSelect) {
-      return;
-    }
-    recommendationSelect.value = value;
-    document.querySelectorAll('.recommendation-recommender-item').forEach(item => {
-      const isActive = item.dataset.value === value;
-      item.classList.toggle('active', isActive);
-      if (isActive) {
-        item.setAttribute('aria-current', 'true');
-      } else {
-        item.removeAttribute('aria-current');
-      }
-    });
-    const activeItem = [...document.querySelectorAll('.recommendation-recommender-item')].find(item => item.dataset.value === value);
-    if (recommendationDropdownLabel && activeItem) {
-      recommendationDropdownLabel.textContent = activeItem.textContent.trim();
-    }
-    const isCustom = value === '__custom__';
-    if (recommendationCustomInput) {
-      recommendationCustomInput.classList.toggle('d-none', !isCustom);
-      if (isCustom) {
-        recommendationCustomInput.focus();
-      }
-    }
-    const profile = recommenderProfiles[value];
-    setRecommendationBackground(profile ? profile.backgroundUrl : '');
-  }
-
-  function setRecommendationBackground(backgroundUrl, isError = false) {
-    if (!recommendationModalContent || !recommendationModalOverlay) {
-      return;
-    }
-    recommendationModalContent.style.backgroundImage = backgroundUrl ? `url('${backgroundUrl}')` : 'none';
-    recommendationModalOverlay.classList.toggle('is-error', isError);
-  }
-
-  function setRecommendationResult(message, isError = false) {
-    if (!recommendationModalBody) {
-      return;
-    }
-    recommendationModalBody.classList.toggle('is-error', isError);
-    recommendationModalBody.innerHTML = message;
-  }
-
-  function openRecommendationPopup(mensaName) {
-    if (!recommendationModal || !recommendationModalTitle || !recommendationModalBody || !recommendationModalContent || !recommendationModalOverlay) {
-      console.error("Popup modal elements not found");
-      return;
-    }
-    currentRecommendationMensa = mensaName;
-    recommendationModalTitle.textContent = (uiText.recommendation_for || 'Empfehlung für {mensa}').replace('{mensa}', mensaName);
-    setRecommendationRecommender('Marvin');
-    if (recommendationCustomInput) {
-      recommendationCustomInput.value = '';
-    }
-    setRecommendationResult(`<p class="text-muted mb-0">${uiText.recommendation_intro}</p>`);
-    if (requestRecommendationButton) {
-      requestRecommendationButton.disabled = getMealsFromMensaSection(mensaName).length === 0;
-    }
-    if (requestRecommendationButton && requestRecommendationButton.disabled) {
-      setRecommendationResult(`<p class="text-danger mb-0">${uiText.recommendation_no_meals}</p>`, true);
-    }
-    recommendationModal.show();
-  }
-
-  function getMealsFromMensaSection(mensaName) {
-    const meals = new Set();
-    if (typeof mealData !== 'undefined' && mealData && mealData[mensaName]) {
-      mealData[mensaName].forEach(meal => {
-        if (meal.display_description) {
-          meals.add(meal.display_description);
-        } else if (meal.description) {
-          meals.add(meal.description);
-        }
-      });
-      return Array.from(meals);
-    }
-
-    document.querySelectorAll('.mensa-section').forEach(section => {
-      if (section.dataset.mensa === mensaName) {
-        section.querySelectorAll('.meal-table tbody tr').forEach(row => {
-          const mealDescElement = row.querySelector('td:first-child strong');
-          if (mealDescElement) meals.add(mealDescElement.textContent.trim());
-        });
-        section.querySelectorAll('.mobile-meal-card .mobile-meal-description').forEach(card => {
-          const strongDesc = card.querySelector('strong');
-          if (strongDesc) meals.add(strongDesc.textContent.trim());
-        });
-      }
-    });
-    return Array.from(meals);
-  }
-
-  function getSelectedRecommender() {
-    if (!recommendationSelect) {
-      return '';
-    }
-    if (recommendationSelect.value === '__custom__') {
-      return recommendationCustomInput ? recommendationCustomInput.value.trim() : '';
-    }
-    return recommendationSelect.value;
-  }
-
-  document.querySelectorAll('.recommendation-recommender-item').forEach(item => {
-    item.addEventListener('click', function () {
-      setRecommendationRecommender(item.dataset.value || '');
-    });
-  });
-
-  document.querySelectorAll('.recommendation-trigger').forEach(trigger => {
-    trigger.addEventListener('click', function () {
-      openRecommendationPopup(trigger.dataset.mensa || '');
-    });
-  });
-
-  if (requestRecommendationButton) {
-    requestRecommendationButton.addEventListener('click', function () {
-      const recommender = getSelectedRecommender();
-      const meals = getMealsFromMensaSection(currentRecommendationMensa);
-      const profile = recommenderProfiles[recommender];
-
-      if (!recommender) {
-        setRecommendationResult(`<p class="text-danger mb-0">${uiText.recommendation_missing_person}</p>`, true);
-        return;
-      }
-      if (meals.length === 0) {
-        setRecommendationResult(`<p class="text-danger mb-0">${uiText.recommendation_no_meals}</p>`, true);
-        return;
-      }
-
-      setRecommendationBackground(profile ? profile.backgroundUrl : '');
-      setRecommendationResult(`<p class="mb-0"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> ${uiText.recommendation_loading}</p>`);
-      requestRecommendationButton.disabled = true;
-
-      fetch('/api/get_recommendation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          meals: meals,
-          mensa: currentRecommendationMensa,
-          recommender: recommender,
-          lang: currentLanguage
-        })
-      })
-      .then(response => {
-        if (!response.ok) {
-          return response.json().then(err => { throw new Error(err.error || `HTTP error ${response.status}`); });
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (data.recommendation) {
-          setRecommendationResult(`<div class="recommendation-text">${data.recommendation}</div>`);
-        } else {
-          throw new Error(data.error || uiText.recommendation_unknown_error);
-        }
-      })
-      .catch(error => {
-        console.error('Error asking for recommendation:', error);
-        const errorTemplate = uiText.recommendation_failed || 'Die Empfehlung konnte nicht erstellt werden: {error}';
-        setRecommendationResult(`<p class="text-danger mb-0">${errorTemplate.replace('{error}', error.message)}</p>`, true);
-      })
-      .finally(() => {
-        requestRecommendationButton.disabled = false;
-      });
-    });
-  }
-
-  const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"].nutrient-info-trigger');
-  [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl, {
-    container: 'body'
-  }));
-
-  const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-  [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl, {
-    container: 'body'
-  }));
-
-  const mensaSelectForArrows = document.getElementById('mensa');
-  const datePickerInputForArrows = document.getElementById('date');
-  const allAvailableDatesForArrows = [{% for date_str in available_dates %}"{{ date_str }}"{% if not loop.last %}, {% endif %}{% endfor %}];
-
-  document.querySelectorAll('.date-nav-arrow').forEach(button => {
-    button.addEventListener('click', function(event) {
-      event.preventDefault();
-      if (this.classList.contains('disabled')) {
-        return;
-      }
-      if (!datePickerInputForArrows || !mensaSelectForArrows) {
-        console.error("Date input or Mensa select not found for arrow navigation.");
-        return;
-      }
-      const direction = this.dataset.direction === 'prev' ? -1 : 1;
-      const currentSelectedMensa = mensaSelectForArrows.value;
-      const currentSelectedDate = datePickerInputForArrows.value;
-      const currentIndex = allAvailableDatesForArrows.indexOf(currentSelectedDate);
-      if (currentIndex === -1) {
-        console.error('Current selected date not found in available dates for arrow navigation:', currentSelectedDate, allAvailableDatesForArrows);
-        return;
-      }
-      let newIndex = currentIndex + direction;
-      if (newIndex < 0) {
-        newIndex = 0;
-      } else if (newIndex >= allAvailableDatesForArrows.length) {
-        newIndex = allAvailableDatesForArrows.length - 1;
-      }
-      const newDate = allAvailableDatesForArrows[newIndex];
-      if (newDate && newDate !== currentSelectedDate) {
-        const params = new URLSearchParams(window.location.search);
-        params.set('date', newDate);
-        params.set('mensa', currentSelectedMensa);
-        applyLanguageParam(params);
-        window.location.href = `${window.location.pathname}?${params.toString()}`;
-      }
-    });
-  });
-
-  function updateMensaTitleArrowStates() {
-    if (!datePickerInputForArrows || allAvailableDatesForArrows.length === 0) return;
-    const currentIndex = allAvailableDatesForArrows.indexOf(datePickerInputForArrows.value);
-    const onFirst = currentIndex <= 0;
-    const onLast = currentIndex === -1 || currentIndex >= allAvailableDatesForArrows.length - 1;
-
-    document.querySelectorAll('.date-nav-arrow[data-direction="prev"]').forEach(btn => {
-      btn.classList.toggle('disabled', onFirst);
-      btn.setAttribute('aria-disabled', onFirst ? 'true' : 'false');
-    });
-    document.querySelectorAll('.date-nav-arrow[data-direction="next"]').forEach(btn => {
-      btn.classList.toggle('disabled', onLast);
-      btn.setAttribute('aria-disabled', onLast ? 'true' : 'false');
-    });
-  }
-
-  updateMensaTitleArrowStates();
-
-  const datepickerEl = document.getElementById('date');
-  if (datepickerEl) {
-    const availableDatesStrings = [{% for date_str in available_dates %}"{{ date_str }}"{% if not loop.last %}, {% endif %}{% endfor %}];
-    const availableUtcTimestamps = new Set();
-    availableDatesStrings.forEach(dateStr => {
-      const parts = dateStr.split('.');
-      if (parts.length === 3) {
-        const utcDate = new Date(Date.UTC(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])));
-        availableUtcTimestamps.add(utcDate.getTime());
-      }
-    });
-
-    new Datepicker(datepickerEl, {
-      format: 'dd.mm.yyyy',
-      language: currentLanguage === 'en' ? 'en' : 'de',
-      autohide: true,
-      todayHighlight: false,
-      buttonClass: 'btn',
-      filter: (dateToFilter) => availableUtcTimestamps.has(dateToFilter.getTime())
-    });
-
-    datepickerEl.addEventListener('changeDate', function() {
-      const params = new URLSearchParams(window.location.search);
-      params.set('date', datepickerEl.value);
-      params.set('mensa', document.getElementById('mensa').value);
-      applyLanguageParam(params);
-      window.location.href = `/?${params.toString()}`;
-    });
-
-    updateMensaTitleArrowStates();
-  }
-});
-</script>
 {% endblock content %}

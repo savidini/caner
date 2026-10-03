@@ -26,6 +26,19 @@ docker compose run --rm --no-deps caner uv run --with pytest python -m pytest
 
 Run the app with `docker compose up`. The app creates required database tables on startup and refreshes menu data from the XML feed.
 
+The **UI and performance checks** workflow builds the same Dockerfile, runs both
+linters and the Python tests, then checks Chromium, Firefox and WebKit against a
+disposable PostgreSQL database. Its `ui-review` artifact includes screenshots,
+accessibility reports and traces for failures. The browser fixture uses synthetic
+menus and mocked image/recommendation providers; it needs no production secrets.
+
+The regression checks cover mobile/desktop and light/dark layouts, keyboard
+controls, voting, comments, image loading, navigation and request failures. They
+also enforce a fixed four-query budget for meal details and social totals across
+1–30 meals, zero initial vote/comment API requests, and at most three concurrent
+image lookups. Run `python -m tests.preview` only in an isolated Docker container
+with a disposable database; it inserts fixture rows.
+
 ## Configuration
 
 Copy `.env.docker.example` to `.env`. Required values:

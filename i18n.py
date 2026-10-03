@@ -10,6 +10,16 @@ LANGUAGE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 TRANSLATIONS = {
     "de": {
+        "skip_to_menu": "Zum Speiseplan",
+        "about_caner": "Was ist ein Caner?",
+        "menu_intro": "Mehr Energie pro Euro. Die besten Caner-Werte zuerst.",
+        "canteen_label": "Mensa auswählen",
+        "vote_failed": "Bewertung nicht gespeichert. Bitte erneut versuchen.",
+        "vote_saved": "Bewertung gespeichert.",
+        "comments_loading": "Kommentare werden geladen…",
+        "comments_failed": "Kommentare konnten nicht geladen werden. Bitte erneut versuchen.",
+        "comment_failed": "Kommentar nicht gespeichert. Dein Text bleibt erhalten. Bitte erneut versuchen.",
+        "retry": "Erneut versuchen",
         "app_title": "Das Caner - Mensa LUH",
         "meta_description": (
             "Das Caner vergleicht die Speisepläne der LUH-Mensen nach "
@@ -142,6 +152,16 @@ TRANSLATIONS = {
         "api_meal_image_lookup_failed": "StudiFutter-Bild konnte nicht geladen werden",
     },
     "en": {
+        "skip_to_menu": "Skip to menu",
+        "about_caner": "What is a Caner?",
+        "menu_intro": "More energy per euro. Highest Caner scores first.",
+        "canteen_label": "Choose canteen",
+        "vote_failed": "Vote not saved. Please try again.",
+        "vote_saved": "Vote saved.",
+        "comments_loading": "Loading comments…",
+        "comments_failed": "Comments could not be loaded. Please try again.",
+        "comment_failed": "Comment not saved. Your text is still here. Please try again.",
+        "retry": "Try again",
         "app_title": "Das Caner - LUH Mensa",
         "meta_description": (
             "Das Caner compares LUH mensa menus by food energy per euro, "

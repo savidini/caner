@@ -70,44 +70,39 @@
     />
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/css/datepicker-bs5.min.css"
-    />
-    <script
-      src="https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/js/datepicker-full.min.js"
-      defer
-    ></script>
-    <script
-      src="https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/js/locales/de.js"
-      defer
-    ></script>
-    <link
-      rel="stylesheet"
       href="{{ url_for('static', filename='css/style.css') }}"
     />
     <script>
       (function () {
-        const savedPreference = localStorage.getItem("themePreference");
-        const legacyDarkMode = localStorage.getItem("darkMode");
-        const preference = savedPreference || (
-          legacyDarkMode === "enabled" ? "dark" :
-          legacyDarkMode === "disabled" ? "light" :
-          "system"
-        );
-        const systemDark = window.matchMedia &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches;
-        if (preference === "dark" || (preference === "system" && systemDark)) {
-          document.documentElement.setAttribute("data-theme", "dark");
+        try {
+          const savedPreference = localStorage.getItem("themePreference");
+          const legacyDarkMode = localStorage.getItem("darkMode");
+          const preference = savedPreference || (
+            legacyDarkMode === "enabled" ? "dark" :
+            legacyDarkMode === "disabled" ? "light" :
+            "system"
+          );
+          const systemDark = window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (preference === "dark" || (preference === "system" && systemDark)) {
+            document.documentElement.setAttribute("data-theme", "dark");
+          }
+        } catch (_) {
+          if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            document.documentElement.setAttribute("data-theme", "dark");
+          }
         }
       })();
     </script>
   </head>
   <body>
+    <a href="#main-content" class="skip-link">{{ texts.skip_to_menu }}</a>
     <header class="header-area">
       <div class="container">
         <nav class="header-controls" aria-label="{{ texts.display_settings }}">
           <div
             class="language-switch"
-            role="radiogroup"
+            role="group"
             aria-label="{{ texts.language }}"
             data-current-lang="{{ language }}"
           >
@@ -115,23 +110,21 @@
               type="button"
               class="language-option{% if language == 'de' %} active{% endif %}"
               data-lang="de"
-              role="radio"
-              aria-checked="{{ 'true' if language == 'de' else 'false' }}"
+              aria-pressed="{{ 'true' if language == 'de' else 'false' }}"
               aria-label="Deutsch"
               title="Deutsch"
             >
-              <span aria-hidden="true">🇩🇪</span>
+              <span aria-hidden="true">DE</span>
             </button>
             <button
               type="button"
               class="language-option{% if language == 'en' %} active{% endif %}"
               data-lang="en"
-              role="radio"
-              aria-checked="{{ 'true' if language == 'en' else 'false' }}"
+              aria-pressed="{{ 'true' if language == 'en' else 'false' }}"
               aria-label="English"
               title="English"
             >
-              <span aria-hidden="true">🇬🇧</span>
+              <span aria-hidden="true">EN</span>
             </button>
           </div>
           <button
@@ -166,13 +159,13 @@
               <div class="caner-image mirrored">
                 <img
                   src="{{ url_for('static', filename='img/caner.png') }}"
-                  alt=""
+                  alt="" width="250" height="250"
                   class="img-fluid light-caner"
                   aria-hidden="true"
                 />
                 <img
                   src="{{ url_for('static', filename='img/darkcaner.png') }}"
-                  alt=""
+                  alt="" width="250" height="250"
                   class="img-fluid dark-caner"
                   aria-hidden="true"
                 />
@@ -189,16 +182,11 @@
                   >Das Caner</a
                 >
               </h1>
-              <p
-                class="header-description header-description-desktop text-center"
-              >
-                {{ texts.header_description_desktop }}
-              </p>
-              <p
-                class="header-description header-description-short text-center"
-              >
-                {{ texts.header_description_mobile }}
-              </p>
+              <p class="header-description text-center">{{ texts.header_description_mobile }}</p>
+              <details class="caner-about">
+                <summary>{{ texts.about_caner }}</summary>
+                <p>{{ texts.header_description_desktop }}</p>
+              </details>
             </div>
           </div>
           <div
@@ -212,13 +200,13 @@
               <div class="caner-image">
                 <img
                   src="{{ url_for('static', filename='img/caner.png') }}"
-                  alt=""
+                  alt="" width="250" height="250"
                   class="img-fluid light-caner"
                   aria-hidden="true"
                 />
                 <img
                   src="{{ url_for('static', filename='img/darkcaner.png') }}"
-                  alt=""
+                  alt="" width="250" height="250"
                   class="img-fluid dark-caner"
                   aria-hidden="true"
                 />
@@ -229,7 +217,7 @@
       </div>
     </header>
 
-    <main class="content-area">
+    <main id="main-content" class="content-area" tabindex="-1">
       <div class="container">{% block content %}{% endblock content %}</div>
     </main>
 
