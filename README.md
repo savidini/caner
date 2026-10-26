@@ -13,6 +13,12 @@ docker compose up --build
 
 Open `http://localhost:30823`.
 
+To open directly in dark mode, use `http://localhost:30823/?theme=dark` (or append
+`&theme=dark` to a URL that already has query parameters). `theme=light` selects
+light mode, and `theme=system` follows the browser's color scheme. The URL setting
+overrides saved preferences and is remembered for future visits when browser
+storage is available. The theme button updates the URL to match your choice.
+
 ## Development
 
 Use Docker for app runs, checks, tests, and deployment verification.

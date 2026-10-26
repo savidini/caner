@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const systemThemeQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
     function getThemePreference() {
+        const requestedPreference = new URLSearchParams(window.location.search).get('theme');
+        if (['light', 'dark', 'system'].includes(requestedPreference)) {
+            return requestedPreference;
+        }
+
         const savedPreference = preferences.get('themePreference');
         if (savedPreference === 'light' || savedPreference === 'dark' || savedPreference === 'system') {
             return savedPreference;
@@ -61,6 +66,9 @@ document.addEventListener('DOMContentLoaded', function() {
             preferences.set('themePreference', themePreference);
             preferences.set('darkMode', themePreference === 'dark' ? 'enabled' : 'disabled');
             applyTheme(themePreference);
+            const url = new URL(window.location);
+            url.searchParams.set('theme', themePreference);
+            window.history.replaceState(window.history.state, '', url);
             if (typeof applyExpertModeStyles === 'function') {
                 applyExpertModeStyles();
             }
